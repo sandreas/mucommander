@@ -25,9 +25,10 @@ import java.util.StringTokenizer;
 
 import org.jets3t.service.Jets3tProperties;
 import org.jets3t.service.S3Service;
-import org.jets3t.service.ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.security.AWSCredentials;
+import org.jets3t.service.security.GSCredentials;
+import org.jets3t.service.security.ProviderCredentials;
 
 import com.mucommander.commons.file.AbstractFile;
 import com.mucommander.commons.file.AuthException;
@@ -50,9 +51,15 @@ public class S3ProtocolProvider implements ProtocolProvider {
         String bucketName;
 
         if(instantiationParams.isEmpty()) {
-        	service = new RestS3Service(new AWSCredentials(credentials.getLogin(), credentials.getPassword()));
-        	Jets3tProperties props = new Jets3tProperties();
-        	props.setProperty("s3service.s3-endpoint", url.getHost());
+            Jets3tProperties props = new Jets3tProperties();
+            props.setProperty("s3service.s3-endpoint", url.getHost());
+            boolean secure = Boolean.parseBoolean(url.getProperty(S3File.SECUTRE_HTTP));
+            if (url.getPort() > 0)
+                props.setProperty(secure ? "s3service.s3-endpoint-https-port" : "s3service.s3-endpoint-http-port", String.valueOf(url.getPort()));
+            props.setProperty("s3service.https-only", String.valueOf(secure));
+            props.setProperty("s3service.disable-dns-buckets", url.getProperty(S3File.DISABLE_DNS_BUCKETS));
+            props.setProperty("s3service.default-bucket-location", url.getProperty(S3File.DEFAULT_BUCKET_LOCATION));
+            service = new RestS3Service(getProviderCredentials(url), null, null, props);
         }
         else {
             service = (S3Service)instantiationParams.get("service");
@@ -83,5 +90,15 @@ public class S3ProtocolProvider implements ProtocolProvider {
             return new S3Bucket(url, service, bucket);
 
         return new S3Bucket(url, service, bucketName);
+    }
+
+    private ProviderCredentials getProviderCredentials(FileURL url) {
+        Credentials credentials = url.getCredentials();
+        switch(url.getProperty(S3File.STORAGE_TYPE)) {
+        case "GS":
+            return new GSCredentials(credentials.getLogin(), credentials.getPassword());
+        default:
+            return new AWSCredentials(credentials.getLogin(), credentials.getPassword());
+        }
     }
 }

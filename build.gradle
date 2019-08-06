@@ -73,17 +73,23 @@ runOsgi {
             'com.apple.eawt,' +
             'com.apple.eio',
         'felix.log.level': 1 ]
+    wrapInstructions {
+        manifest("httpclient.*") {
+            // enable httpclient to instantiate factories that reside in jets3t
+            instruction 'DynamicImport-Package', 'org.jets3t.service.utils', '*'
+        }
+    }
 }
 
 allprojects {
     group = 'org.mucommander'
     version = '0.9.4'
-    sourceCompatibility = 1.8
-    targetCompatibility = 1.8
+    sourceCompatibility = 11
+    targetCompatibility = 11
 }
 
 ext {
-    // Open the Git repository in the current directory.
+    // Open the Git repository in the project's root directory.
     git = grgit.open(dir: project.rootDir)
 
     // Get commit id of HEAD.
@@ -100,34 +106,21 @@ buildRpm {
 
     maintainer = 'Arik Hadas <arik.hadas1@gmail.com>'
     summary = 'a lightweight, cross-platform file manager'
-    suggests('sun-java6-jre')
-    recommends('java-virtual-machine')
-    recommends('java2-runtime')
+    suggests('java-1.8.0-openjdk')
     os = LINUX
 
-    from ("$buildDir/osgi") {
-        include 'run.sh'
-        rename 'run.sh','mucommander.sh'
-        fileMode 0755
-    }
-
     from ('package') { include 'license.txt', 'readme.txt' }
-//    from ('package/unix/mucommander.sh') {
-//        filter(ReplaceTokens, tokens: [JAVA_ARGS: '-Djava.system.class.loader=com.mucommander.commons.file.AbstractFileClassLoader',
-//                                       ARGS: ''])
-//    }
+    from ('package/unix/mucommander.sh')
     into '/usr/share/mucommander'
 
     from ("$buildDir/osgi/bundle") {
         include '*.jar'
         into '/usr/share/mucommander/bundle'
     }
-
     from ("$buildDir/osgi/conf") {
         include '*'
         into '/usr/share/mucommander/conf'
     }
-
     from ("$buildDir/osgi/system-libs") {
         include '*'
         into '/usr/share/mucommander/system-libs'
@@ -143,7 +136,44 @@ buildRpm {
         into '/usr/share/applications'
     }
 
-    directory( '/usr/share/mucommander/felix-cache' ,0775);
+    directory( '/usr/share/mucommander/felix-cache' ,0775)
+}
+
+// Debian packaging
+buildDeb {
+    postInstall file('package/unix/postinst')
+    postUninstall file('package/unix/postrm')
+
+    maintainer = 'Arik Hadas <arik.hadas1@gmail.com>'
+    summary = 'a lightweight, cross-platform file manager'
+    suggests('openjdk-8-jre')
+    recommends('java-virtual-machine')
+
+    from ('package') { include 'license.txt', 'readme.txt' }
+    from ('package/unix/mucommander.sh')
+    into '/usr/share/mucommander'
+
+    from ("$buildDir/osgi/bundle") {
+        include '*.jar'
+        into '/usr/share/mucommander/bundle'
+    }
+    from ("$buildDir/osgi/conf") {
+        include '*'
+        into '/usr/share/mucommander/conf'
+    }
+    from ("$buildDir/osgi/system-libs") {
+        include '*'
+        into '/usr/share/mucommander/system-libs'
+    }
+    from ('mucommander-core/src/main/resources/images/mucommander') {
+        include 'icon128_24.png'
+        into '/usr/share/pixmaps/'
+        rename '.*', 'mucommander.png'
+    }
+    from ('package/unix') {
+        include 'mucommander.desktop'
+        into '/usr/share/applications'
+    }
 }
 
 /*
@@ -163,7 +193,7 @@ jar {
                    "Implementation-Vendor": "Arik Hadas",
                    "Implementation-Version": revision.substring(0, 7),
                    "Build-Date": new Date().format('yyyyMMdd'),
-                   "Build-URL": "http://www.mucommander.com/version/nightly.xml")
+                   "Build-URL": "https://www.mucommander.com/version/nightly.xml")
     }
 }
 
@@ -313,38 +343,6 @@ task portable(type: Tar) {
     compression = Compression.GZIP
 }
 
-// Debian packaging
-buildDeb {
-    postInstall file('package/unix/postinst')
-    postUninstall file('package/unix/postrm')
-
-    maintainer = 'Arik Hadas <arik.hadas1@gmail.com>'
-    summary = 'a lightweight, cross-platform file manager'
-    suggests('sun-java6-jre')
-    recommends('java-virtual-machine')
-    recommends('java2-runtime')
-
-    from ("$buildDir/libs") {
-        include '*.jar'
-        rename '(.*?)-.*.jar','$1.jar'
-    }
-    from ('package') { include 'license.txt', 'readme.txt' }
-    from ('package/unix/mucommander.sh') {
-        filter(ReplaceTokens, tokens: [JAVA_ARGS: '-Djava.system.class.loader=com.mucommander.commons.file.AbstractFileClassLoader',
-                                       ARGS: ''])
-    }
-    into '/usr/share/mucommander'
-
-    from ('src/main/resources/images/mucommander') {
-        include 'icon128_24.png'
-        into '/usr/share/pixmaps/'
-        rename '.*', 'mucommander.png'
-    }
-    from ('package/unix') {
-        include 'mucommander.desktop'
-        into '/usr/share/applications'
-    }
-}
 */
 
 

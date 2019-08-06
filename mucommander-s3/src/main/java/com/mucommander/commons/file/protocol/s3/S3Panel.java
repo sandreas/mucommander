@@ -19,6 +19,15 @@
 
 package com.mucommander.commons.file.protocol.s3;
 
+import java.net.MalformedURLException;
+import java.text.ParseException;
+
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JPasswordField;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
+
 import com.mucommander.commons.file.Credentials;
 import com.mucommander.commons.file.FileURL;
 import com.mucommander.commons.file.protocol.FileProtocols;
@@ -26,10 +35,6 @@ import com.mucommander.text.Translator;
 import com.mucommander.ui.dialog.server.ServerConnectDialog;
 import com.mucommander.ui.dialog.server.ServerPanel;
 import com.mucommander.ui.main.MainFrame;
-
-import javax.swing.*;
-import java.net.MalformedURLException;
-import java.text.ParseException;
 
 
 /**
@@ -44,6 +49,10 @@ public class S3Panel extends ServerPanel {
     private JPasswordField passwordField;
     private JTextField initialDirField;
     private JSpinner portSpinner;
+    private JComboBox<String> storageType;
+    private JTextField locationField;
+    private JCheckBox dnsBuckets;
+    private JCheckBox secureHttp;
 
     private static String lastServer = "s3.amazonaws.com";
     private static String lastUsername = "";
@@ -51,7 +60,10 @@ public class S3Panel extends ServerPanel {
     private String lastPassword = "";
     private static String lastInitialDir = "/";
     private static int lastPort = FileURL.getRegisteredHandler(FileProtocols.S3).getStandardPort();
-
+    private static String lastStorageType = "AWS";
+    private static boolean lastDisableDnsBuckets = true;
+    private static boolean lastSecureHttp = true;
+    private static String lastLocation = "US";
 
     S3Panel(ServerConnectDialog dialog, final MainFrame mainFrame) {
         super(dialog, mainFrame);
@@ -73,7 +85,11 @@ public class S3Panel extends ServerPanel {
         passwordField = new JPasswordField();
         addTextFieldListeners(passwordField, false);
         // Not localized on purpose
-        addRow("Secret Access Key", passwordField, 15);
+        addRow("Secret Access Key", passwordField, 5);
+
+        storageType = new JComboBox<>(new String[] {"AWS", "GS"});
+        storageType.setSelectedItem(lastStorageType);
+        addRow(Translator.get("server_connect_dialog.storage_type"), storageType, 5);
 
         // Initial directory field, initialized to "/"
         initialDirField = new JTextField(lastInitialDir);
@@ -83,7 +99,18 @@ public class S3Panel extends ServerPanel {
 
         // Port field, initialized to last port
         portSpinner = createPortSpinner(lastPort);
-        addRow(Translator.get("server_connect_dialog.port"), portSpinner, 15);
+        addRow(Translator.get("server_connect_dialog.port"), portSpinner, 5);
+
+        // Username field, initialized to last username
+        locationField = new JTextField(lastLocation);
+        addTextFieldListeners(locationField, false);
+        addRow(Translator.get("server_connect_dialog.buckets_location"), locationField, 15);
+
+        dnsBuckets = new JCheckBox(Translator.get("server_connect_dialog.dns_buckets"), !lastDisableDnsBuckets);
+        addRow("", dnsBuckets, 5);
+
+        secureHttp = new JCheckBox(Translator.get("server_connect_dialog.secure_http"), lastSecureHttp);
+        addRow("", secureHttp, 15);
     }
 
 
@@ -93,6 +120,10 @@ public class S3Panel extends ServerPanel {
         lastPassword = new String(passwordField.getPassword());
         lastInitialDir = initialDirField.getText();
         lastPort = (Integer) portSpinner.getValue();
+        lastStorageType = (String) storageType.getSelectedItem();
+        lastDisableDnsBuckets = !dnsBuckets.isSelected();
+        lastSecureHttp = secureHttp.isSelected();
+        lastLocation = locationField.getText();
     }
 
 
@@ -113,6 +144,11 @@ public class S3Panel extends ServerPanel {
 
         // Set port
         url.setPort(lastPort);
+
+        url.setProperty(S3File.STORAGE_TYPE, lastStorageType);
+        url.setProperty(S3File.DISABLE_DNS_BUCKETS, String.valueOf(lastDisableDnsBuckets));
+        url.setProperty(S3File.SECUTRE_HTTP, String.valueOf(lastSecureHttp));
+        url.setProperty(S3File.DEFAULT_BUCKET_LOCATION, lastLocation);
 
         return url;
     }
